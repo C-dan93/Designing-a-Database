@@ -1,0 +1,61 @@
+-- Create Students table
+CREATE TABLE Students (
+    StudentID VARCHAR(50) PRIMARY KEY,
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50) NOT NULL,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Phone VARCHAR(30),
+    Major VARCHAR(50),
+    Year VARCHAR(10) CHECK (Year IN ('Year 1', 'Year 2', 'Year 3', 'Year 4'))
+);
+
+-- Create Courses table
+CREATE TABLE Courses (
+    CourseID VARCHAR(50) PRIMARY KEY,
+    CourseCode VARCHAR(20) NOT NULL UNIQUE,
+    Title VARCHAR(100) NOT NULL,
+    Credits INT NOT NULL CHECK (Credits > 0),
+    Department VARCHAR(50)
+);
+
+-- Create Instructors table
+CREATE TABLE Instructors (
+    InstructorID VARCHAR(50) PRIMARY KEY,
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50) NOT NULL,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Department VARCHAR(50)
+);
+
+-- Create CourseOfferings table
+CREATE TABLE CourseOfferings (
+    OfferingID VARCHAR(50) PRIMARY KEY,
+    CourseID VARCHAR(50) NOT NULL,
+    Semester VARCHAR(20) NOT NULL,
+    InstructorID VARCHAR(50) NOT NULL,
+    Schedule VARCHAR(100),
+    FOREIGN KEY (CourseID) REFERENCES Courses(CourseID),
+    FOREIGN KEY (InstructorID) REFERENCES Instructors(InstructorID)
+);
+
+-- Create Enrollments table
+CREATE TABLE Enrollments (
+    EnrollmentID VARCHAR(50) PRIMARY KEY,
+    StudentID VARCHAR(50) NOT NULL,
+    OfferingID VARCHAR(50) NOT NULL,
+    EnrollmentDate DATE NOT NULL,
+    Grade VARCHAR(2) CHECK (Grade IN ('A', 'B', 'C', 'D', 'F', NULL)),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (OfferingID) REFERENCES CourseOfferings(OfferingID),
+    -- Prevent duplicate enrollments
+    UNIQUE (StudentID, OfferingID)
+);
+
+-- Create Prerequisites table (self-referencing)
+CREATE TABLE Prerequisites (
+    CourseID VARCHAR(50) NOT NULL,
+    PrerequisiteID VARCHAR(50) NOT NULL,
+    PRIMARY KEY (CourseID, PrerequisiteID),
+    FOREIGN KEY (CourseID) REFERENCES Courses(CourseID),
+    FOREIGN KEY (PrerequisiteID) REFERENCES Courses(CourseID)
+);
