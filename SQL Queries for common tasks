@@ -1,0 +1,110 @@
+-- STUDENT SERVICES QUERIES --
+-- Retrieve all courses a student is enrolled in for a given seamester
+SELECT s.FirstName, s.LastName, cf.Semester, c.Title
+FROM students s
+JOIN enrollments e ON s.StudentID = e.StudentID
+JOIN courseofferings cf ON cf.OfferingID = e.OfferingID
+JOIN courses c ON cf.CourseID = c.CourseID;
+
+-- Display students transcript (courses titles, semesters, grades, GPA)
+SELECT s.StudentID, s.FirstName, s.LastName, c.Title, cf.Semester, e.Grade, c.Credits, SUM(CASE 
+	WHEN e.Grade = 'A' THEN 5.0
+    WHEN e.Grade = 'B' THEN 4.0
+    WHEN e.Grade = 'C' THEN 3.0
+    WHEN e.Grade = 'D' THEN 2.0
+    WHEN e.Grade = 'E' THEN 1.0
+    ELSE 0
+END * c.Credits)/ SUM(c.Credits) AS GPA
+FROM students s
+JOIN enrollments e ON s.StudentID = e.StudentID
+JOIN courseofferings cf ON cf.OfferingID = e.OfferingID
+JOIN courses c ON cf.CourseID = c.CourseID
+GROUP BY s.FirstName, s.LastName, s.StudentID, cf.Semester, c.Title, e.Grade, c.Credits;
+
+-- Students who have not completed a prerequisite for a course (Using the CTE Query Method)
+-- CTE 1: Get all courses that students have successfully completed (passed)
+WITH StudentCompletedCourses AS (
+	SELECT e.StudentID, c.CourseID
+    FROM enrollments e
+    JOIN courseofferings co ON e.OfferingID = co.OfferingID
+    JOIN courses c ON co.CourseID = c.CourseID
+    WHERE e.Grade IN ('A', 'B', 'C', 'D', 'E')
+),
+-- CTE 2: Map all course prerequisites with course and prerequisite titles
+CoursePrerequisites AS (
+	SELECT c.CourseID, p.PrerequisiteID, preq.Title as PrerequisiteTitle, c.Title as CourseTitle
+    FROM courses c
+    JOIN prerequisites p ON c.CourseID = p.CourseID
+    JOIN courses preq ON p.PrerequisiteID = preq.CourseID
+),
+-- CTE 3: Get all current student enrollments with student and course details
+StudentEnrollments AS (
+	SELECT s.StudentID, s.FirstName, s.LastName, c.CourseID, c.Title as CourseTitle
+    FROM students s
+    JOIN enrollments e ON s.StudentID = e.StudentID
+    JOIN courseofferings co ON e.OfferingID = co.OfferingID
+    JOIN courses c ON co.CourseID = c.CourseID
+)
+-- Final query: Find students enrolled in courses who haven't completed the prerequisites
+SELECT 
+	se.StudentID, 
+	se.FirstName, 
+	se.LastName, 
+	se.CourseID as EnrolledCourseID, 
+	se.CourseTitle as EnrolledCourse,
+	cp.PrerequisiteID, 
+	cp.PrerequisiteTitle as MissingPrerequisite
+FROM StudentEnrollments se
+JOIN CoursePrerequisites cp ON se.CourseID = cp.CourseID
+LEFT JOIN StudentCompletedCourses scc 
+	ON se.StudentID = scc.StudentID AND cp.PrerequisiteID = scc.CourseID
+WHERE scc.CourseID IS NULL
+ORDER BY se.FirstName, se.LastName, se.CourseID;
+
+
+									-- ADMINISTRATIVE QUERIES
+-- All courses offered in a department in a given semester
+SELECT c.Title, i.Department, cf.Semester
+FROM courseofferings cf
+JOIN courses c ON cf.CourseID = c.CourseID
+JOIN instructors i ON cf.InstructorID = i.InstructorID
+HAVING Semester = "Fall 2023"
+ORDER BY Department;
+
+-- Course Load per Instructor per semester 
+SELECT i.FirstName, i.LastName, cf.Semester, COUNT(c.Title) AS CourseLoad
+FROM courseofferings cf
+JOIN courses c ON cf.CourseID = c.CourseID
+JOIN instructors i ON cf.InstructorID = i.InstructorID
+GROUP BY i.FirstName, i.LastName, cf.Semester;
+
+-- Under Enrolled Offerings (less than 5 Offerings)
+SELECT e.OfferingID, COUNT(DISTINCT e.StudentID)EnrollmentCount, c.Title
+FROM enrollments e
+JOIN courseofferings cf ON e.OfferingID = cf.OfferingID
+JOIN courses c ON cf.CourseID = c.CourseID
+GROUP BY OfferingID
+HAVING COUNT(DISTINCT StudentID) < 5;
+
+										-- UPDATE AND MAINTAIN DATA
+-- Update a students major
+Update students
+set Major = "Biology"
+where StudentID = "10" ;
+
+-- Assign grades to students post seamester
+UPDATE enrollments e
+	JOIN courseofferings co ON e.OfferingID = co.OfferingID
+	SET e.Grade =
+		CASE 
+			WHEN e.StudentID = '10' THEN 'C'
+			WHEN e.StudentID = '4' THEN 'B'
+			ELSE e.Grade
+		END 
+	WHERE e.OfferingID = "O7" OR e.OfferingID = "O1"
+	AND co.Semester = "Fall 2023" ;
+    
+-- Drop a student from a course.
+DELETE 
+FROM enrollments
+WHERE StudentID = '101' AND OfferingID = 'O11';
